@@ -26,6 +26,8 @@ This is a proof-of-concept (POC) web interface that allows users to upload inter
    - A unique UUID for tracking
 3. A second webhook is polled in intervals until transcription is complete
 4. Once available, the transcript is shown in a preformatted viewer with syntax highlighting
+5. Output files such as transcript, summary and slide are available in your Google Drive
+6. A formatted email will appear in your inbox
 
 ---
 
@@ -62,18 +64,23 @@ This site can be deployed using **GitHub Pages**:
 
 ## 📌 Requirements
 
-- A [Cloudinary](https://cloudinary.com/) account with:
+- Cloudinary(https://cloudinary.com/) account with:
   - A valid cloud name
   - An unsigned upload preset (with `resource_type: video`)
-- A Make.com account with:
+- Make.com account with:
   - One webhook to accept file URL & language
   - One webhook to serve polling responses
+- OpenAI account
+- AssemblyAI account
+- Google Drive account
+
 
 ---
 
 ## 📸 Screenshots
 
-> _(Optional: Add screenshots here of the form, upload, and transcript view)_
+<img width="1250" height="798" alt="image" src="https://github.com/user-attachments/assets/4b03c34a-d215-49c4-ba21-5baa941b29c8" />
+
 
 ---
 
