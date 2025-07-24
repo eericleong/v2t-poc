@@ -1,0 +1,320 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Upload Recording for Transcription</title>
+  <script src="https://widget.cloudinary.com/v2.0/global/all.js" type="text/javascript"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  <style>
+    body {
+      background: linear-gradient(135deg, #17a3a1 0%, #832fa2 100%);
+      font-family: 'Segoe UI', sans-serif;
+      display: flex;
+      height: 100vh;
+      margin: 0;
+    }
+
+    .left {
+      flex: 0 0 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      box-sizing: border-box;
+    }
+
+    .right {
+        flex: 0 0 50%;
+        display: flex;
+        align-items: stretch;
+        justify-content: center;
+        padding: 2rem;
+        box-sizing: border-box;
+        background-color: white;
+        position: relative;
+        overflow-y: auto;
+    }
+
+    .container {
+      background: #fff;
+      padding: 2rem 3rem;
+      border-radius: 12px;
+      box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+      width: 100%;
+      max-width: 350px;
+      text-align: center;
+    }
+
+    .video-preview {
+      display: none;
+      margin-top: 1rem;
+    }
+
+    video {
+      max-width: 100%;
+      border-radius: 8px;
+      margin-top: 10px;
+    }
+
+    h2 {
+      margin-bottom: 1rem;
+      font-weight: 600;
+      color: #333;
+    }
+
+    label, select, button {
+      display: block;
+      width: 100%;
+    }
+
+    select {
+      padding: 10px 12px;
+      font-size: 16px;
+      margin: 10px 0 20px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      background-color: #f9f9f9;
+      color: #333;
+      appearance: none;
+    }
+
+    button {
+      background: #0072f5;
+      color: white;
+      border: none;
+      padding: 12px;
+      font-size: 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+      margin-top: 20px;
+    }
+
+    button:hover {
+      background: #005dc1;
+    }
+
+    .footer {
+      margin-top: 1.5rem;
+      font-size: 0.9rem;
+      color: #777;
+    }
+
+    pre {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        overflow: auto;
+    }
+
+    pre code {
+      width: 100%;
+      height: 90%;
+      border-radius: 12px;
+      padding: 1rem;
+      font-size: 16px;
+      background: #fff;
+      color: #333;
+      font-family: monospace;
+      overflow-wrap: break-word;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .hljs {
+      white-space: pre-wrap;
+      word-break: break-word;
+      background-color: white;
+      font-size: 0.9em;
+    }
+
+    .spinner-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(255, 255, 255, 0.6);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+    }
+
+    .spinner {
+      border: 6px solid #f3f3f3;
+      border-top: 6px solid #0072f5;
+      border-radius: 50%;
+      width: 50px;
+      height: 50px;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="left">
+    <div class="container">
+      <h2>Upload Your Interview File</h2>
+
+      <form id="upload-form">
+        <label for="language">Select Output Language:</label>
+        <select name="language" id="language">
+          <option value="en">English</option>
+          <option value="es">Spanish</option>
+          <option value="fr">French</option>
+          <option value="de">German</option>
+        </select>
+
+        <div id="videoPreview" class="video-preview">
+          <video id="videoElement" controls muted></video>
+        </div>
+
+        <button id="cloudinary-upload-button" class="upload-button" type="button">
+          Upload Video
+        </button>
+        <input type="hidden" name="video" id="cloudinary-file-url" />
+
+        <button type="submit" class="upload-button">
+          Submit for Transcription
+        </button>
+      </form>
+
+      <div class="footer">
+        Built by Me + Myself + I
+      </div>
+    </div>
+  </div>
+
+  <div class="right">
+    <div id="spinner" class="spinner-overlay">
+      <div class="spinner"></div>
+    </div>
+    <pre><code id="outputText" class="json hljs"></code></pre>
+  </div>
+
+  <script>
+    const form = document.getElementById('upload-form');
+
+    function generateUUID() {
+      return ([1e7]+-1e3+-4e3+-8e3+-1e11)
+        .replace(/[018]/g, c =>
+          (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
+        );
+    }
+
+    function decodeHTMLEntities(text) {
+      const txt = document.createElement("textarea");
+      txt.innerHTML = text;
+      return txt.value;
+    }
+
+    function showSpinner() {
+      document.getElementById("spinner").style.display = "flex";
+    }
+
+    function hideSpinner() {
+      document.getElementById("spinner").style.display = "none";
+    }
+
+    function pollForResult(uuid, attempt = 0) {
+      const MAX_ATTEMPTS = 18;
+      const INTERVAL = 10000;
+
+      if (attempt >= MAX_ATTEMPTS) {
+        document.getElementById("outputText").textContent = "Timed out. Please try again later.";
+        hideSpinner();
+        return;
+      }
+
+      fetch(`https://hook.us2.make.com/f9xifhs2nkhh38xi9886r3q58xek3b8y?uuid=${uuid}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data && data.data) {
+            const outputEl = document.getElementById("outputText");
+            try {
+              const parsed = typeof data.data === 'string' ? JSON.parse(data.data) : data.data;
+              outputEl.textContent = JSON.stringify(parsed, null, 2);
+            } catch {
+              outputEl.textContent = decodeHTMLEntities(data.data);
+            }
+            hljs.highlightElement(outputEl);
+            hideSpinner();
+          } else {
+            setTimeout(() => pollForResult(uuid, attempt + 1), INTERVAL);
+          }
+        })
+        .catch(err => {
+          console.error("Polling error:", err);
+          setTimeout(() => pollForResult(uuid, attempt + 1), INTERVAL);
+        });
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      showSpinner();
+
+      const selectedLang = document.getElementById('language').value;
+      const fileUrl = document.getElementById("cloudinary-file-url").value;
+      const uuid = generateUUID();
+
+      if (!fileUrl) {
+        alert("Please upload a video first.");
+        hideSpinner();
+        return;
+      }
+
+      try {
+        const res = await fetch("https://hook.us2.make.com/0pwvqvx67pyho8ll4dm9ewvvvpull6hb", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ file_url: fileUrl, language: selectedLang, uuid: uuid })
+        });
+
+        if (res.ok) {
+          pollForResult(uuid);
+        } else {
+          throw new Error(res.statusText);
+        }
+      } catch (err) {
+        document.getElementById("outputText").textContent = "Something went wrong.";
+        console.error("Error:", err);
+        hideSpinner();
+      }
+    });
+
+    const cloudinaryWidget = cloudinary.createUploadWidget(
+      {
+        cloudName: 'doszbnygm',
+        uploadPreset: 'video_widget_upload',
+        sources: ['local', 'camera'],
+        resourceType: 'video',
+        multiple: false,
+        maxFiles: 1
+      },
+      (error, result) => {
+        if (!error && result && result.event === "success") {
+          const fileUrl = result.info.secure_url;
+          document.getElementById("cloudinary-file-url").value = fileUrl;
+
+          const videoPreview = document.getElementById('videoPreview');
+          const videoEl = document.getElementById('videoElement');
+          videoEl.src = fileUrl;
+          videoPreview.style.display = 'block';
+        }
+      }
+    );
+
+    document.getElementById("cloudinary-upload-button").addEventListener("click", function () {
+      cloudinaryWidget.open();
+    }, false);
+  </script>
+</body>
+</html>
